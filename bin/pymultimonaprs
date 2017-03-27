@@ -13,11 +13,13 @@ from pymultimonaprs.multimon import Multimon
 from pymultimonaprs import beacon
 from pymultimonaprs.gate import IGate
 from pymultimonaprs.frame import APRSFrame, InvalidFrame
+from pymultimonaprs.kenwood import Kenwood
 
 parser = argparse.ArgumentParser(description='HF2APRS-IG Gateway.')
 parser.add_argument('-c', dest='config', default='/etc/pymultimonaprs.json', help='Use this config file')
 parser.add_argument('--syslog', action='store_true', help='Log to syslog')
 parser.add_argument('-v', '--verbose', action='store_true', help='Log all traffic - including beacon')
+parser.add_argument('-m', '--mode', dest='mode', default='multimon', help='Mode (multimon or kenwood)')
 args = parser.parse_args()
 
 config = json.load(open(args.config))
@@ -93,14 +95,19 @@ def bc():
 logger.info("Starting pymultimonaprs")
 
 preferred_protocol = config.get("preferred_protocol", "any").lower()
+mode = args.mode.lower()
 
 ig = IGate(config['callsign'], config['passcode'], config['gateway'], preferred_protocol)
-mm = Multimon(mmcb,config)
 
+if mode == kenwood:
+	handler = Kenwood(mmcb, config)
+else: # mode is the default (multimon)
+	handler = Multimon(mmcb, config)
+	
 def signal_handler(signal, frame):
 	logger.info("Stopping pymultimonaprs")
 	ig.exit()
-	mm.exit()
+	handler.exit()
 	sys.exit(0)
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
